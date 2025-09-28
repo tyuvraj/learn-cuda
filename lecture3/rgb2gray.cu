@@ -1,4 +1,3 @@
-#include <math.h>
 #include <iostream>
 
 __host__ __device__ u_char rgb2gray(
@@ -11,8 +10,8 @@ __global__ void rgb2gray_kernel(
     u_char* red, u_char* green, u_char* blue, u_char* gray, u_int32_t width, u_int32_t height
 ){
 
-    unsigned int x_index = gridDim.x * blockIdx.x + threadIdx.x;
-    unsigned int y_index = gridDim.y * blockIdx.y + threadIdx.y;
+    unsigned int x_index = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int y_index = blockDim.y * blockIdx.y + threadIdx.y;
     unsigned int pixel_index = width * x_index + y_index;
 
     if(x_index < width && y_index < height) {
