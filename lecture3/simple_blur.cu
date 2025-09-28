@@ -33,8 +33,8 @@ __host__ __device__ u_char calc_blur_value(
 }
 
 __global__ void blur_kernel(u_char* gray, u_char* blur, u_int32_t width, u_int32_t height) {
-    int32_t row = blockDim.x * blockIdx.x + threadIdx.x;
-    int32_t col = blockDim.y * blockIdx.y + threadIdx.y;
+    int32_t col = blockDim.x * blockIdx.x + threadIdx.x;
+    int32_t row = blockDim.y * blockIdx.y + threadIdx.y;
     u_int32_t output_index = width * row + col;
 
     if (row < height && col < width){
@@ -44,7 +44,7 @@ __global__ void blur_kernel(u_char* gray, u_char* blur, u_int32_t width, u_int32
 
 int main() {
     const u_int32_t width = 256;
-    const u_int32_t height = 256;
+    const u_int32_t height = 144;
     const u_int32_t N = width * height;
     const u_int32_t N_bytes = N*sizeof(u_char);
     u_char *gray = new u_char[N];
@@ -82,8 +82,8 @@ int main() {
     cudaFree(blur_d);
 
 
-    for (int i = 0; i < 256; i++){
-        for (int j = 0; j < 256; j++) {
+    for (int i = 0; i < height; i++){
+        for (int j = 0; j < width; j++) {
             auto cpu_val = float(get_pixel_value(blur, i, j, width, height));
             auto gpu_val = float(calc_blur_value(gray, i, j, width, height));
             auto diff = abs(cpu_val-gpu_val);
