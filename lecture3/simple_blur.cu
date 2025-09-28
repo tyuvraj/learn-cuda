@@ -77,9 +77,6 @@ int main() {
     );
 
     cudaMemcpy(blur, blur_d, N_bytes, cudaMemcpyDeviceToHost);
-    // std::cout << "values at 32, 128: " << std::endl;
-    // std::cout  << "\n CPU: " << float(calc_blur_value(gray, 32, 88, width, height)) << std::endl;
-    // std::cout  << "\n GPU: " << float(get_pixel_value(blur, 32, 88, width, height)) << std::endl; 
     
     cudaFree(gray_d);
     cudaFree(blur_d);
