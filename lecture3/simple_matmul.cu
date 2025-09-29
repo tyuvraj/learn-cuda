@@ -39,11 +39,11 @@ int main() {
     float *matC = new float[matC_size];
     
     for (int i=0; i< matA_size; i++){
-        matA[i] =  i; //float(rand())/RAND_MAX;
+        matA[i] =  float(rand())/RAND_MAX;
     }
     
     for (int i=0; i< matB_size; i++){
-        matB[i] =  i; //float(rand())/RAND_MAX;
+        matB[i] =  float(rand())/RAND_MAX;
     }
     
     float *matA_d, *matB_d, *matC_d;
