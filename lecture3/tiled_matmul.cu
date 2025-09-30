@@ -30,13 +30,13 @@ __global__ void mat_mul_tiled_kernel(
         const int innerCol = tile_offset + threadIdx.x;
         const int innerRow = tile_offset + threadIdx.y;
 
-        if(row < heightA && innerCol < widthA){
+        if(row < heightA && innerCol < widthA){ // can get rid of this if widthA is not a multiple of TILE_SIZE
             A_s[threadIdx.y][threadIdx.x] =  matA[widthA*row + innerCol];
         } else {
             A_s[threadIdx.y][threadIdx.x] = 0;
         }
 
-        if(innerRow < widthA && col < widthB){
+        if(innerRow < widthA && col < widthB){ // can get rid of this if widthA is not a multiple of TILE_SIZE
             B_s[threadIdx.y][threadIdx.x] =  matB[widthB*innerRow + col];
         } else {
             B_s[threadIdx.y][threadIdx.x] = 0;
@@ -54,7 +54,7 @@ __global__ void mat_mul_tiled_kernel(
     }
 
     u_int32_t output_index = widthB * row + col;
-    if (row < heightA and col < widthB){
+    if (row < heightA and col < widthB){ // can get rid of this if heightA and widthB is not a multiple of blocksize.xy
         matC[output_index] = sum;
     }
 
