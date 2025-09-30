@@ -1,4 +1,6 @@
 #include <iostream>
+#define TILE_SIZE 32
+
 
 void matmul_cpu(const float* A, const float* B, float* C, int M, int N, int K) {
     for (int row = 0; row < M; ++row) {
@@ -12,24 +14,47 @@ void matmul_cpu(const float* A, const float* B, float* C, int M, int N, int K) {
     }
 }
 
-
-/**
- * Simple rectangular matrix multiplication
- */
-__global__ void mat_mul_kernel(
-    float* matA, float* matB, float* matC, u_int32_t M, u_int32_t N, u_int32_t K
+__global__ void mat_mul_tiled_kernel(
+    float* matA, float* matB, float* matC, u_int32_t heightA, u_int32_t widthB, u_int32_t widthA
 ){
     int row = blockDim.y * blockIdx.y + threadIdx.y;
     int col = blockDim.x * blockIdx.x + threadIdx.x;
 
+    __shared__ float A_s[TILE_SIZE][TILE_SIZE];
+    __shared__ float B_s[TILE_SIZE][TILE_SIZE];
+    
+    const unsigned int NUM_TILES = (widthA + TILE_SIZE - 1)/TILE_SIZE;
     float sum = 0;
-    for (int i = 0; i < K; i++) {
-        float a = matA[K*row + i];
-        float b = matB[N*i + col];
-        sum += a * b;
+    for (unsigned int tile_section = 0; tile_section < NUM_TILES; ++tile_section){
+        const int tile_offset = TILE_SIZE*tile_section;
+        const int innerCol = tile_offset + threadIdx.x;
+        const int innerRow = tile_offset + threadIdx.y;
+
+        if(row < heightA && innerCol < widthA){
+            A_s[threadIdx.y][threadIdx.x] =  matA[widthA*row + innerCol];
+        } else {
+            A_s[threadIdx.y][threadIdx.x] = 0;
+        }
+
+        if(innerRow < widthA && col < widthB){
+            B_s[threadIdx.y][threadIdx.x] =  matB[widthB*innerRow + col];
+        } else {
+            B_s[threadIdx.y][threadIdx.x] = 0;
+        }
+
+        __syncthreads();
+
+        for (unsigned int  inner_index=0; inner_index < TILE_SIZE; ++inner_index){
+            float a = A_s[threadIdx.y][inner_index];
+            float b = B_s[inner_index][threadIdx.x];
+            sum += a * b;
+        }
+
+        __syncthreads();
     }
-    u_int32_t output_index = N * row + col;
-    if (row < M and col < N){
+
+    u_int32_t output_index = widthB * row + col;
+    if (row < heightA and col < widthB){
         matC[output_index] = sum;
     }
 
@@ -70,14 +95,15 @@ int main() {
     cudaMemcpy(matA_d, matA, matA_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(matB_d, matB, matB_bytes, cudaMemcpyHostToDevice);
 
-    const dim3 blockSize(32, 32);
+    const dim3 blockSize(TILE_SIZE, TILE_SIZE);
     const dim3 gridSize(
         (N + blockSize.x - 1) / blockSize.x,
         (M + blockSize.y - 1) / blockSize.y,
         1
     );
 
-    mat_mul_kernel<<<gridSize, blockSize>>>(
+
+    mat_mul_tiled_kernel<<<gridSize, blockSize>>>(
         matA_d, matB_d, matC_d, M, N, K
     );
 
