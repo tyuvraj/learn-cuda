@@ -11,6 +11,8 @@ Practising CUDA with the help of PPMP lectures by [GPU Computing, Spring 2021, I
 
 ## Mat mul different runtimes on Nvidia GPU 4060 TI
 
+### Square Mat Mul
+
 ```
 M = 256, N = 256, K = 256;
 matA_size = M x K; // input matrix A
@@ -27,7 +29,7 @@ COARSE_FACTOR 4
 - Tiled matmul with work per thread of 2 (with data access guards): **0.021 ms**
 - Tiled matmul with work per thread of 4 (without data access guards): **0.040 ms**
 
----
+### Rectangular Mat Mul
 
 ```
 u_int32_t M = 255, N = 257, K = 256;
@@ -48,6 +50,8 @@ COARSE_FACTOR 4
 
 ---
 
+### Square Mat Mul with different BLOCK_SIZE and WPT
+
 ```
 M = 1024, N = 1024, K = 1024;
 matA_size = M x K; // input matrix A
@@ -55,7 +59,7 @@ matB_size = K x N; // input matrix B
 matC_size = M x N; // output matrix C
 ```
 
-### BLOCK_SIZE 16
+#### BLOCK_SIZE 16
 
 - Simple matmul (without tiling) & BLOCK_SIZE 16 runtime: **1.675 ms**
 
@@ -65,7 +69,7 @@ matC_size = M x N; // output matrix C
 - Tiled matmul with work per thread of 4 (with data access guards): **1.170 ms** (best!)
 - Tiled matmul with work per thread of 8 (with data access guards): **1.208 ms**
 
-### BLOCK_SIZE 32
+#### BLOCK_SIZE 32
 
 - Simple matmul (without tiling) & BLOCK_SIZE 32 runtime: **1.717 ms**
 
