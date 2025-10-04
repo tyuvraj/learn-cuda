@@ -1,6 +1,7 @@
 #include <iostream>
+#include <cmath>
 #define TILE_SIZE 32
-
+#define COARSE_FACTOR 4
 
 void matmul_cpu(const float* A, const float* B, float* C, int M, int N, int K) {
     for (int row = 0; row < M; ++row) {
@@ -14,17 +15,22 @@ void matmul_cpu(const float* A, const float* B, float* C, int M, int N, int K) {
     }
 }
 
-__global__ void mat_mul_tiled_kernel(
+__global__ void mat_mul_tiled_coarse_kernel(
     float* matA, float* matB, float* matC, u_int32_t heightA, u_int32_t widthB, u_int32_t widthA
 ){
     int row = blockDim.y * blockIdx.y + threadIdx.y;
-    int col = blockDim.x * blockIdx.x + threadIdx.x;
+    int colStart = blockDim.x * blockIdx.x * COARSE_FACTOR + threadIdx.x;
 
     __shared__ float A_s[TILE_SIZE][TILE_SIZE];
     __shared__ float B_s[TILE_SIZE][TILE_SIZE];
     
     const unsigned int NUM_TILES = (widthA + TILE_SIZE - 1)/TILE_SIZE;
-    float sum = 0;
+    float sum[COARSE_FACTOR];
+    for(unsigned int c=0; c < COARSE_FACTOR; ++c) {
+        sum[c] = 0;
+    }
+    
+
     for (unsigned int tile_section = 0; tile_section < NUM_TILES; ++tile_section){
         const int tile_offset = TILE_SIZE*tile_section;
         const int innerCol = tile_offset + threadIdx.x;
@@ -36,26 +42,33 @@ __global__ void mat_mul_tiled_kernel(
             A_s[threadIdx.y][threadIdx.x] = 0;
         }
 
-        if(innerRow < widthA && col < widthB){
-            B_s[threadIdx.y][threadIdx.x] =  matB[widthB*innerRow + col];
-        } else {
-            B_s[threadIdx.y][threadIdx.x] = 0;
+        for(unsigned int c=0; c < COARSE_FACTOR; ++c) {
+            unsigned int col_new = colStart + c*TILE_SIZE;
+            if(innerRow < widthA && col_new < widthB){
+                B_s[threadIdx.y][threadIdx.x] =  matB[widthB*innerRow + col_new];
+            } else {
+                B_s[threadIdx.y][threadIdx.x] = 0;
+            }
+    
+            __syncthreads();
+    
+            for (unsigned int  inner_index=0; inner_index < TILE_SIZE; ++inner_index){
+                float a = A_s[threadIdx.y][inner_index];
+                float b = B_s[inner_index][threadIdx.x];
+                sum[c] += a * b;
+            }
+    
+            __syncthreads();
         }
 
-        __syncthreads();
-
-        for (unsigned int  inner_index=0; inner_index < TILE_SIZE; ++inner_index){
-            float a = A_s[threadIdx.y][inner_index];
-            float b = B_s[inner_index][threadIdx.x];
-            sum += a * b;
-        }
-
-        __syncthreads();
     }
 
-    u_int32_t output_index = widthB * row + col;
-    if (row < heightA and col < widthB){
-        matC[output_index] = sum;
+     for(unsigned int c=0; c < COARSE_FACTOR; ++c) {
+        unsigned int col_new = colStart + c*TILE_SIZE;
+        u_int32_t output_index = widthB * row + col_new;
+        if (row < heightA and col_new < widthB){
+            matC[output_index] = sum[c];
+        }
     }
 
 }
@@ -95,15 +108,17 @@ int main() {
     cudaMemcpy(matA_d, matA, matA_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(matB_d, matB, matB_bytes, cudaMemcpyHostToDevice);
 
+
     const dim3 blockSize(TILE_SIZE, TILE_SIZE);
     const dim3 gridSize(
-        (N + blockSize.x - 1) / blockSize.x,
-        (M + blockSize.y - 1) / blockSize.y,
+        // (N + (blockSize.x) - 1) /blockSize.x/COARSE_FACTOR,
+        static_cast<int>(std::ceil(static_cast<float>(N)/blockSize.x/COARSE_FACTOR)),
+        static_cast<int>(std::ceil(static_cast<float>(M)/blockSize.y)),
         1
     );
 
 
-    mat_mul_tiled_kernel<<<gridSize, blockSize>>>(
+    mat_mul_tiled_coarse_kernel<<<gridSize, blockSize>>>(
         matA_d, matB_d, matC_d, M, N, K
     );
 
@@ -116,7 +131,7 @@ int main() {
     //     float b = matC[i];
     //     float diff = abs(a - b);
     //     if(diff > 1e-4){
-    //          std::cout <<  a << " " << b << " " << diff << std::endl;
+    //          std::cout <<  a << " " << b << " " << diff << "at" << i << std::endl;
     //     }
     //     sum += diff;
     // }

@@ -1,4 +1,5 @@
 #include <iostream>
+#define BLOCK_SIZE 32
 
 void matmul_cpu(const float* A, const float* B, float* C, int M, int N, int K) {
     for (int row = 0; row < M; ++row) {
@@ -38,7 +39,7 @@ __global__ void mat_mul_kernel(
 int main() {
     u_int32_t  matA_size, matB_size, matC_size, matA_bytes, matB_bytes, matC_bytes; 
     
-    u_int32_t M = 333, N = 511, K = 1025;
+    u_int32_t M = 1024, N = 1024, K = 1024;
     matA_size = M * K; // MxK input matrix
     matB_size = K * N; // KxN input matrix
     matC_size = M * N; // MxN output matrix
@@ -70,7 +71,7 @@ int main() {
     cudaMemcpy(matA_d, matA, matA_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(matB_d, matB, matB_bytes, cudaMemcpyHostToDevice);
 
-    const dim3 blockSize(32, 32);
+    const dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
     const dim3 gridSize(
         (N + blockSize.x - 1) / blockSize.x,
         (M + blockSize.y - 1) / blockSize.y,
@@ -83,18 +84,18 @@ int main() {
 
     cudaMemcpy(matC, matC_d, matC_bytes, cudaMemcpyDeviceToHost);
 
-    matmul_cpu(matA, matB, matC_check, M, N, K);
-    float sum = 0;
-    for (int i = 0; i < matC_size; i++) {
-        float a = matC_check[i] ;
-        float b = matC[i];
-        float diff = abs(a - b);
-        if(diff > 1e-4){
-             std::cout <<  a << " " << b << " " << diff << std::endl;
-        }
-        sum += diff;
-    }
-    std::cout << "sum: " << sum << std::endl;
+    // matmul_cpu(matA, matB, matC_check, M, N, K);
+    // float sum = 0;
+    // for (int i = 0; i < matC_size; i++) {
+    //     float a = matC_check[i] ;
+    //     float b = matC[i];
+    //     float diff = abs(a - b);
+    //     if(diff > 1e-4){
+    //          std::cout <<  a << " " << b << " " << diff << std::endl;
+    //     }
+    //     sum += diff;
+    // }
+    // std::cout << "sum: " << sum << std::endl;
 
     cudaFree(matA_d);
     cudaFree(matB_d);

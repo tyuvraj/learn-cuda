@@ -1,4 +1,3 @@
-
 __global__ void vecAdd(const float* A, const float* B, float* C, int N) {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < N) {
@@ -36,5 +35,6 @@ int main(int argc, char** argv) {
     delete[] x;
     delete[] y;
     delete[] z;
+
     return 0;
 }
