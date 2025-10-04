@@ -105,6 +105,7 @@ int main() {
     delete[] matA;
     delete[] matB;
     delete[] matC;
+    delete[] matC_check;
 
     return 0;
 }
